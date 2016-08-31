@@ -32,7 +32,9 @@ if not len(sys.argv) > 1:
     print('Iceberg id must be specified!')
     sys.exit(1)
 
-icebergId = sys.argv[1] if len(sys.argv) > 1 else  
+currentTimeMillis = lambda: int(round(time.time() * 1000))
+
+icebergId = sys.argv[1];
 connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
 channel = connection.channel()
 channel.exchange_declare(exchange='events', type='topic')
@@ -45,10 +47,10 @@ if not cap.begin():
 
 # Alternatively, specify a custom I2C address such as 0x5B (ADDR tied to 3.3V),
 # 0x5C (ADDR tied to SDA), or 0x5D (ADDR tied to SCL).
-#cap.begin(address=0x5B)
+# cap.begin(address=0x5B)
 
 # Also you can specify an optional I2C bus with the bus keyword parameter.
-#cap.begin(busnum=1)
+# cap.begin(busnum=1)
 
 # Main loop to print a message every time a pin is touched.
 print('Press Ctrl-C to quit.')
@@ -68,17 +70,18 @@ while True:
         # First check if transitioned from not touched to touched.
         if current_touched & pin_bit and not last_touched & pin_bit:
             print('{0} touched!'.format(i))
-            channel.basic_publish(exchange='events', 
-                    routing_key=('{}.{}.touch.event'.format(icebergId, i)), 
-                    body='{{}}')
+            channel.basic_publish(exchange='events', routing_key=('{}.{}.touch.event'.format(icebergId, i)),
+                                  body='{{"type":"TOUCH","sensorNumber":{},"icebergId":"{}","touched":true,"time":{}}}'.
+                                  format(i, icebergId, currentTimeMillis()))
 
         # Next check if transitioned from touched to not touched.
         if not current_touched & pin_bit and last_touched & pin_bit:
             print('{0} released!'.format(i))
-            channel.basic_publish(exchange='events', 
-                    routing_key=('{}.{}.touch.event'.format(icebergId, i)),
-                    body='{{}}')
-
+            channel.basic_publish(exchange='events',
+                                  routing_key=('{}.{}.touch.event'.format(icebergId, i)),
+                                  body=
+                                  '{{"type":"TOUCH","sensorNumber":{},"icebergId":"{}","touched":false,"time":{}}}'.
+                                  format(i, icebergId, currentTimeMillis()))
 
     # Update last state and wait a short period before repeating.
     last_touched = current_touched
